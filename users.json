@@ -1,16 +1,9 @@
 {
     "admin": {
-        "password": "Aa798397463",
+        "password": "pbkdf2_sha256$6cc416194abf2e2d49bec459fc83a110$ad3745994e5d50534888ecec28595cf6cd954a866da7dbb158e4d3ae1fe946ae",
         "first_name": "andrzej",
         "last_name": "",
         "birth_date": "",
         "avatar_path": "C:/Users/dawid/OneDrive/Obrazy/Roblox/RobloxScreenShot20260502_134249997.png"
-    },
-    "ziejek": {
-        "password": "123",
-        "first_name": "",
-        "last_name": "",
-        "birth_date": "",
-        "avatar_path": "C:/Users/dawid/OneDrive/Obrazy/Screenshots/2025-01-19 (1).png"
     }
 }

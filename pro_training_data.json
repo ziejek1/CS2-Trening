@@ -1,11 +1,27 @@
 {
-    "active": [
-        {
-            "type": "Aim Botz (1000 Kills / Fast Taps)",
-            "duration": 10
+    "users": {
+        "admin": {
+            "active": [
+                {
+                    "type": "Warmup: Aim Lab (Gridshot / Microflex)",
+                    "duration": 10
+                },
+                {
+                    "type": "Aim Botz: One-Taps & Counter-Strafe",
+                    "duration": 15
+                },
+                {
+                    "type": "Recoil Control (AK-47 / M4A1-S Spray)",
+                    "duration": 10
+                },
+                {
+                    "type": "FFA Deathmatch (Headshot Only)",
+                    "duration": 10
+                }
+            ],
+            "completed_count": 16,
+            "total_minutes_spent": 217,
+            "fatigue_score": 2604
         }
-    ],
-    "completed_count": 15,
-    "total_minutes_spent": 207,
-    "fatigue_score": 2484
+    }
 }

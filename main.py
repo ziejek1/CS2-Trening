@@ -1,15 +1,19 @@
 import customtkinter as ctk
+import hashlib
+import hmac
 import json
 import os
+import secrets
 from datetime import datetime
 from tkinter import filedialog
-from PIL import Image, ImageTk
+from PIL import Image
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
 DATA_FILE = "pro_training_data.json"
 USERS_FILE = "users.json"
+PASSWORD_SCHEME = "pbkdf2_sha256"
 
 PRESET_PROTOCOLS = {
     "🔥 Pro Aim & Reflex (45 min)": [
@@ -38,7 +42,8 @@ class CS2ProTrainingApp(ctk.CTk):
         self.geometry("1150x880")
 
         self.users = self.load_users()
-        self.data = self.load_data()
+        self.training_data = self.load_data()
+        self.data = self.empty_training_data()
         self.current_user = None
 
         # Stan stoperów
@@ -97,7 +102,7 @@ class CS2ProTrainingApp(ctk.CTk):
     def load_users(self):
         default_users = {
             "admin": {
-                "password": "Aa798397463",
+                "password": self.hash_password("Aa798397463"),
                 "first_name": "Administrator",
                 "last_name": "Systemu",
                 "birth_date": "2000-01-01",
@@ -128,6 +133,29 @@ class CS2ProTrainingApp(ctk.CTk):
     def save_users(self):
         with open(USERS_FILE, "w", encoding="utf-8") as f:
             json.dump(self.users, f, ensure_ascii=False, indent=4)
+
+    @staticmethod
+    def hash_password(password):
+        salt = secrets.token_bytes(16)
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 310000)
+        return f"{PASSWORD_SCHEME}${salt.hex()}${digest.hex()}"
+
+    @classmethod
+    def verify_password(cls, password, stored_password):
+        if not isinstance(stored_password, str):
+            return False, False
+
+        if not stored_password.startswith(f"{PASSWORD_SCHEME}$"):
+            return hmac.compare_digest(stored_password, password), True
+
+        try:
+            _, salt_hex, digest_hex = stored_password.split("$", 2)
+            salt = bytes.fromhex(salt_hex)
+            expected_digest = bytes.fromhex(digest_hex)
+            actual_digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 310000)
+            return hmac.compare_digest(actual_digest, expected_digest), False
+        except (ValueError, TypeError):
+            return False, False
 
     def get_user_data(self, username):
         user_info = self.users.get(username, {})
@@ -194,8 +222,15 @@ class CS2ProTrainingApp(ctk.CTk):
 
             if user in self.users:
                 user_info = self.get_user_data(user)
-                if user_info.get("password") == pwd:
+                password_matches, is_legacy_password = self.verify_password(pwd, user_info.get("password", ""))
+                if password_matches:
                     self.current_user = user
+                    if is_legacy_password:
+                        user_info["password"] = self.hash_password(pwd)
+                        self.save_users()
+                    self.load_user_training_data()
+                    self.session_timer_seconds = 0
+                    self.refresh_timer_displays()
                     self.lbl_user_info.configure(text=f"{self.current_user}")
                     login_win.destroy()
                     
@@ -227,7 +262,11 @@ class CS2ProTrainingApp(ctk.CTk):
     # --- SYSTEM WYLOGOWANIA ---
     def logout(self):
         self.stop_timer()
+        if self.current_user:
+            self.save_data()
         self.current_user = None
+        self.data = self.empty_training_data()
+        self.session_timer_seconds = 0
         
         if hasattr(self, "tab_admin"):
             try:
@@ -238,24 +277,41 @@ class CS2ProTrainingApp(ctk.CTk):
 
         self.show_login_dialog()
 
-    def load_data(self):
-        default_data = {
+    @staticmethod
+    def empty_training_data():
+        return {
             "active": [],
             "completed_count": 0,
             "total_minutes_spent": 0,
             "fatigue_score": 0
         }
+
+    def load_data(self):
         if os.path.exists(DATA_FILE):
             try:
                 with open(DATA_FILE, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    loaded_data = json.load(f)
+                    if isinstance(loaded_data, dict) and isinstance(loaded_data.get("users"), dict):
+                        return loaded_data
+                    return {"users": {"admin": loaded_data}}
             except Exception:
-                return default_data
-        return default_data
+                pass
+        return {"users": {}}
+
+    def load_user_training_data(self):
+        user_data = self.training_data.setdefault("users", {}).get(self.current_user)
+        if not isinstance(user_data, dict):
+            user_data = self.empty_training_data()
+            self.training_data["users"][self.current_user] = user_data
+        self.data = user_data
+        self.save_data()
 
     def save_data(self):
+        if not self.current_user:
+            return
+        self.training_data.setdefault("users", {})[self.current_user] = self.data
         with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, ensure_ascii=False, indent=4)
+            json.dump(self.training_data, f, ensure_ascii=False, indent=4)
 
     # --- ZAKŁADKA 1: Centrum Dowodzenia ---
     def setup_dashboard(self):
