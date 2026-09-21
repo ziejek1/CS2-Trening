@@ -1,27 +1,51 @@
 {
     "users": {
         "admin": {
-            "active": [
+            "active": [],
+            "completed_count": 5,
+            "total_minutes_spent": 0,
+            "fatigue_score": 12,
+            "completion_history": [
                 {
-                    "type": "Warmup: Aim Lab (Gridshot / Microflex)",
-                    "duration": 10
+                    "date": "2026-09-21",
+                    "type": "KZ / Surf (Movement)",
+                    "duration": 1,
+                    "duration_seconds": 8
                 },
                 {
-                    "type": "Aim Botz: One-Taps & Counter-Strafe",
-                    "duration": 15
-                },
-                {
+                    "date": "2026-09-21",
                     "type": "Recoil Control (AK-47 / M4A1-S Spray)",
-                    "duration": 10
+                    "duration": 0,
+                    "duration_seconds": 0
                 },
                 {
+                    "date": "2026-09-21",
                     "type": "FFA Deathmatch (Headshot Only)",
-                    "duration": 10
+                    "duration": 0,
+                    "duration_seconds": 0
+                },
+                {
+                    "date": "2026-09-21",
+                    "type": "Aim Botz: One-Taps & Counter-Strafe",
+                    "duration": 0,
+                    "duration_seconds": 0
+                },
+                {
+                    "date": "2026-09-21",
+                    "type": "Warmup: Aim Lab (Gridshot / Microflex)",
+                    "duration": 0,
+                    "duration_seconds": 0
                 }
             ],
-            "completed_count": 16,
-            "total_minutes_spent": 217,
-            "fatigue_score": 2604
+            "total_seconds_spent": 8
+        },
+        "ziejek": {
+            "active": [],
+            "completed_count": 0,
+            "total_minutes_spent": 0,
+            "fatigue_score": 0,
+            "completion_history": [],
+            "total_seconds_spent": 0
         }
     }
 }
