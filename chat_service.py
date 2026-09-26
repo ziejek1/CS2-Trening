@@ -105,7 +105,7 @@ class ChatRealtimeService:
                 schema="public",
                 table="chat_messages",
             )
-            for table in ("user_presence", "user_training_data", "app_shared_config"):
+            for table in ("user_presence", "user_training_data", "app_shared_config", "app_users"):
                 channel.on_postgres_changes(
                     "*",
                     callback=self._handle_row_change,

@@ -30,6 +30,30 @@ class CloudDataService:
         rows = self._request("GET", f"user_training_data?select=username,data&username=eq.{encoded_username}")
         return rows[0].get("data") if rows else None
 
+    def get_all_users(self):
+        rows = self._request("GET", "app_users?select=username,data&order=username.asc")
+        return {
+            row["username"]: row.get("data", {})
+            for row in rows
+            if row.get("username") and isinstance(row.get("data"), dict)
+        }
+
+    def save_user_account(self, username, data):
+        return self._request(
+            "POST",
+            "app_users?on_conflict=username",
+            {"username": username, "data": data},
+            prefer="return=minimal,resolution=merge-duplicates"
+        )
+
+    def delete_user_account(self, username):
+        encoded_username = urllib.parse.quote(username, safe="")
+        return self._request(
+            "DELETE",
+            f"app_users?username=eq.{encoded_username}",
+            prefer="return=minimal"
+        )
+
     def get_all_data(self):
         rows = self._request("GET", "user_training_data?select=username,data")
         return {

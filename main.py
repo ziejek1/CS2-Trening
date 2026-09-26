@@ -89,6 +89,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         self.cloud_leaderboard_cache = None
         self.cloud_leaderboard_cache_time = None
         self.shared_config_job = None
+        self.sync_users()
         self.sync_shared_config()
 
         # Stan stoperów
@@ -176,6 +177,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         self.refresh_ui()
 
         # Otwarcie okna logowania
+        self.start_chat_realtime()
         self.show_login_dialog()
 
     @staticmethod
@@ -189,6 +191,42 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
 
     def save_users(self):
         save_users(USERS_FILE, self.users)
+        if not self.cloud_data_service.enabled:
+            return
+        for username, user_data in self.users.items():
+            try:
+                self.cloud_data_service.save_user_account(username, user_data)
+            except Exception:
+                pass
+
+    def sync_users(self):
+        if not self.cloud_data_service.enabled:
+            return
+        try:
+            cloud_users = self.cloud_data_service.get_all_users()
+        except Exception:
+            return
+
+        if cloud_users:
+            local_only_users = {
+                username: user_data
+                for username, user_data in self.users.items()
+                if username not in cloud_users
+            }
+            self.users.update(cloud_users)
+            save_users(USERS_FILE, self.users)
+            for username, user_data in local_only_users.items():
+                try:
+                    self.cloud_data_service.save_user_account(username, user_data)
+                except Exception:
+                    pass
+            return
+
+        for username, user_data in self.users.items():
+            try:
+                self.cloud_data_service.save_user_account(username, user_data)
+            except Exception:
+                pass
 
     def load_remembered_login(self):
         return load_remembered_login(REMEMBERED_LOGIN_FILE)
@@ -571,6 +609,21 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
             shared_config = record.get("data")
             if isinstance(shared_config, dict):
                 self.apply_shared_config(shared_config)
+            return
+
+        if table == "app_users":
+            username = (old_record if event == "DELETE" else record).get("username")
+            if not username:
+                return
+            if event == "DELETE":
+                self.users.pop(username, None)
+            else:
+                user_data = record.get("data")
+                if isinstance(user_data, dict):
+                    self.users[username] = user_data
+            save_users(USERS_FILE, self.users)
+            if self.current_user == "admin" and hasattr(self, "users_scroll"):
+                self.refresh_users_list()
             return
 
         if table != "user_training_data":
@@ -3328,10 +3381,15 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         if new_username != old_username:
             del self.users[old_username]
             self.users[new_username] = user_data
+            try:
+                self.cloud_data_service.delete_user_account(old_username)
+            except Exception:
+                pass
             if self.current_user == old_username:
                 self.current_user = new_username
 
         self.save_users()
+        self.save_user_account_to_cloud(new_username)
         self.lbl_admin_msg.configure(text=f"✓ Pomyślnie zaktualizowano konto: {new_username}", text_color="#10B981")
         self.refresh_users_list()
 
@@ -3343,6 +3401,10 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         if username in self.users:
             del self.users[username]
             self.save_users()
+            try:
+                self.cloud_data_service.delete_user_account(username)
+            except Exception:
+                pass
             self.lbl_admin_msg.configure(text=f"✓ Usunięto użytkownika: {username}", text_color="#10B981")
             self.refresh_users_list()
 
@@ -3366,12 +3428,21 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
             "avatar_path": ""
         }
         self.save_users()
+        self.save_user_account_to_cloud(new_username)
 
         self.new_user_entry.delete(0, "end")
         self.new_pass_entry.delete(0, "end")
         self.lbl_admin_msg.configure(text=f"✓ Pomyślnie utworzono konto dla: {new_username}", text_color="#10B981")
         
         self.refresh_users_list()
+
+    def save_user_account_to_cloud(self, username):
+        if not self.cloud_data_service.enabled or username not in self.users:
+            return
+        try:
+            self.cloud_data_service.save_user_account(username, self.users[username])
+        except Exception:
+            pass
 
     # --- Zegar Systemowy ---
     def update_realtime_clock(self):

@@ -13,7 +13,8 @@ begin
     foreach target_table in array array[
         'user_presence',
         'user_training_data',
-        'app_shared_config'
+        'app_shared_config',
+        'app_users'
     ]
     loop
         begin
@@ -35,7 +36,8 @@ begin
     foreach target_table in array array[
         'user_presence',
         'user_training_data',
-        'app_shared_config'
+        'app_shared_config',
+        'app_users'
     ]
     loop
         begin
