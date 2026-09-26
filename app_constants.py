@@ -2,7 +2,7 @@ DATA_FILE = "pro_training_data.json"
 USERS_FILE = "users.json"
 REMEMBERED_LOGIN_FILE = "remembered_login.json"
 PASSWORD_SCHEME = "pbkdf2_sha256"
-APP_VERSION = "1.0.8"
+APP_VERSION = "1.0.9"
 SUPABASE_URL = "https://fvmscxuybltwzjwxagck.supabase.co"
 SUPABASE_ANON_KEY = "sb_publishable_PYr7W6xo0hJyhiNwTkCkJw__WARcv9E"
 

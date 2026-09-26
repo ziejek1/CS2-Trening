@@ -57,4 +57,17 @@ def download_installer(download_url):
 
 
 def launch_installer(installer_path):
-    subprocess.Popen([installer_path], close_fds=True)
+    launcher_path = os.path.join(tempfile.gettempdir(), "CS2Trening-update.cmd")
+    installer_path = os.path.abspath(installer_path)
+    with open(launcher_path, "w", encoding="utf-8") as launcher:
+        launcher.write(
+            "@echo off\n"
+            "timeout /t 3 /nobreak >nul\n"
+            f'start "" /wait "{installer_path}"\n'
+            'del "%~f0"\n'
+        )
+    subprocess.Popen(
+        ["cmd.exe", "/c", launcher_path],
+        close_fds=True,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    )
