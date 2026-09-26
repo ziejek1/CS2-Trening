@@ -1,5 +1,5 @@
 #define MyAppName "CS2 Trening E-Sport"
-#define MyAppVersion "1.0.5"
+#define MyAppVersion "1.0.6"
 #define MyAppPublisher "CS2 Trening"
 #define MyAppExeName "CS2Trening.exe"
 

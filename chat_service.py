@@ -49,12 +49,13 @@ class ChatRealtimeService:
         self._thread = None
         self._on_message = None
         self._on_status = None
+        self._on_delete = None
 
     @property
     def enabled(self):
         return bool(self.base_url and self.anon_key)
 
-    def start(self, on_message, on_status=None):
+    def start(self, on_message, on_status=None, on_delete=None):
         if not self.enabled:
             return False
         if self._thread and self._thread.is_alive():
@@ -67,6 +68,7 @@ class ChatRealtimeService:
         self._stop_event.clear()
         self._on_message = on_message
         self._on_status = on_status
+        self._on_delete = on_delete
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
         return True
@@ -95,6 +97,12 @@ class ChatRealtimeService:
                 schema="public",
                 table="chat_messages",
             )
+            channel.on_postgres_changes(
+                "DELETE",
+                callback=self._handle_delete,
+                schema="public",
+                table="chat_messages",
+            )
             await channel.subscribe(self._handle_subscribe)
             while not self._stop_event.is_set():
                 await asyncio.sleep(0.25)
@@ -112,6 +120,12 @@ class ChatRealtimeService:
         record = payload.get("data", {}).get("record")
         if isinstance(record, dict) and self._on_message:
             self._on_message(record)
+
+    def _handle_delete(self, payload):
+        record = payload.get("data", {}).get("old_record") or {}
+        message_id = record.get("id")
+        if message_id is not None and self._on_delete:
+            self._on_delete(message_id)
 
     def _handle_subscribe(self, status, error):
         self._notify_status(getattr(status, "value", status), error)
