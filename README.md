@@ -41,7 +41,7 @@ Aby opublikować aktualizację:
 
 1. Ustaw tę samą nową wersję w `APP_VERSION` w `app_constants.py` i `MyAppVersion` w `installer\CS2Trening.iss`.
 2. Utwórz commit i wypchnij zmiany na `main`.
-3. W GitHubie utwórz release z tagiem o tym samym numerze, np. dla wersji `1.0.9` tag `v1.0.9`.
+3. W GitHubie utwórz release z tagiem o tym samym numerze, np. dla wersji `1.0.10` tag `v1.0.10`.
 4. Po opublikowaniu release GitHub Actions zbuduje instalator i dołączy go do wydania. Build przerwie się, jeśli tag, `APP_VERSION` i `MyAppVersion` nie będą zgodne.
 
 Workflow znajduje się w `.github\workflows\release.yml`.
@@ -73,9 +73,15 @@ Uruchom również `supabase_chat_realtime.sql`, aby włączyć chat, obecność,
 
 Uruchom również `supabase_chat_retention.sql`, aby Supabase zostawiał maksymalnie 10 wiadomości i czyścił cały chat co godzinę, o pełnej godzinie. Zdarzenia `DELETE` z Realtime opróżniają także widok w otwartych aplikacjach.
 
+## Pokoje głosowe
+
+Aplikacja zawiera pięć darmowych pokojów głosowych WebRTC. Po zalogowaniu otwórz zakładkę `Pokoje głosowe`, wybierz pokój i kliknij `Dołącz`. Mikrofon uruchamia się dopiero po kliknięciu `Włącz mikrofon`; do rozmów najlepiej używać słuchawek, aby uniknąć echa. Połączenia używają darmowego STUN i nie wymagają dodatkowego serwera, ale część restrykcyjnych sieci może wymagać później konfiguracji TURN.
+
 ## Synchronizacja kont użytkowników
 
 Aby konta utworzone przez administratora były od razu dostępne na innych komputerach, uruchom w Supabase również `supabase_users_schema.sql`, a następnie ponownie `supabase_chat_realtime.sql`. Nowe, zmienione i usunięte konta są synchronizowane przez Realtime także na ekranie logowania.
+
+Zdjęcia profilowe synchronizuje `supabase_avatar_storage.sql`. Uruchom ten skrypt w Supabase, aby avatary były widoczne przy wiadomościach chatu na każdym komputerze.
 
 ## Testy
 

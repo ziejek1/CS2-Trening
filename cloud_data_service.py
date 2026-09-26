@@ -1,5 +1,7 @@
 import json
 import copy
+import mimetypes
+import os
 import urllib.parse
 import urllib.request
 
@@ -53,6 +55,22 @@ class CloudDataService:
             f"app_users?username=eq.{encoded_username}",
             prefer="return=minimal"
         )
+
+    def upload_avatar(self, username, file_path):
+        extension = os.path.splitext(file_path)[1].lower() or ".jpg"
+        object_name = f"{urllib.parse.quote(username, safe='')}{extension}"
+        with open(file_path, "rb") as avatar_file:
+            body = avatar_file.read()
+        content_type = mimetypes.guess_type(file_path)[0] or "image/jpeg"
+        url = f"{self.base_url}/storage/v1/object/avatars/{object_name}"
+        request = urllib.request.Request(url, data=body, method="POST")
+        request.add_header("apikey", self.anon_key)
+        request.add_header("Authorization", f"Bearer {self.anon_key}")
+        request.add_header("Content-Type", content_type)
+        request.add_header("x-upsert", "true")
+        with urllib.request.urlopen(request, timeout=30) as response:
+            response.read()
+        return f"{self.base_url}/storage/v1/object/public/avatars/{object_name}"
 
     def get_all_data(self):
         rows = self._request("GET", "user_training_data?select=username,data")

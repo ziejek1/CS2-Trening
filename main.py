@@ -5,13 +5,16 @@ import os
 import secrets
 import sys
 import tkinter as tk
+from io import BytesIO
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from tkinter import filedialog, messagebox
 import threading
+import urllib.request
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from PIL import Image
+from avatar_utils import crop_avatar, get_avatar_focus, get_avatar_zoom
 from auth_utils import hash_password, hash_remember_token, verify_password
 from data_store import (
     clear_remembered_login,
@@ -57,12 +60,13 @@ from update_utils import download_installer, fetch_latest_release, launch_instal
 from presence_service import PresenceService
 from chat_service import ChatRealtimeService, ChatService
 from chat_view import ChatViewMixin
+from voice_view import VoiceViewMixin
 from cloud_data_service import CloudDataService, merge_training_data
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
-class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, LeaderboardViewMixin, ctk.CTk):
+class CS2ProTrainingApp(ChatViewMixin, VoiceViewMixin, StatsViewMixin, PlannerViewMixin, LeaderboardViewMixin, ctk.CTk):
     def __init__(self):
         super().__init__()
 
@@ -85,6 +89,8 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         self.chat_service = ChatService(SUPABASE_URL, SUPABASE_ANON_KEY)
         self.chat_realtime_service = ChatRealtimeService(SUPABASE_URL, SUPABASE_ANON_KEY)
         self.chat_polling_job = None
+        self.voice_service = None
+        self.voice_microphone_on = False
         self.cloud_data_service = CloudDataService(SUPABASE_URL, SUPABASE_ANON_KEY)
         self.cloud_leaderboard_cache = None
         self.cloud_leaderboard_cache_time = None
@@ -162,6 +168,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         self.tab_planner = self.tabview.add("📅 Plan treningowy")
         self.tab_leaderboard = self.tabview.add("🏆 Top uczniowie")
         self.tab_chat = self.tabview.add("💬 Chat")
+        self.tab_voice = self.tabview.add("🎙️ Pokoje głosowe")
 
         self.setup_dashboard()
         self.setup_presets()
@@ -170,6 +177,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         self.setup_planner_tab()
         self.setup_leaderboard_tab()
         self.setup_chat_tab()
+        self.setup_voice_tab()
 
         # Zegarek systemowy
         self.update_realtime_clock()
@@ -426,6 +434,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
             self.deiconify()
             self.start_presence_updates()
             self.start_chat_realtime()
+            self.start_voice_service()
             self.start_shared_config_polling()
             self.after(1500, self.check_for_updates)
 
@@ -493,6 +502,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         self.stop_rest_timer()
         self.stop_presence_updates()
         self.stop_chat_realtime()
+        self.stop_voice_service()
         self.stop_shared_config_polling()
         if self.reminder_job:
             self.after_cancel(self.reminder_job)
@@ -507,6 +517,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         self.stop_rest_timer()
         self.stop_presence_updates()
         self.stop_chat_realtime()
+        self.stop_voice_service()
         self.stop_shared_config_polling()
         if self.current_user:
             self.save_data()
@@ -2428,6 +2439,9 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
 
         self.lbl_avatar_display = ctk.CTkLabel(left_col, text="[Brak zdjęcia]", width=140, height=140, fg_color="#1E293B", corner_radius=10)
         self.lbl_avatar_display.pack(pady=10)
+        self.lbl_avatar_display.configure(cursor="hand2")
+        self.lbl_avatar_display.bind("<ButtonPress-1>", self.start_avatar_drag)
+        self.lbl_avatar_display.bind("<B1-Motion>", self.drag_avatar)
 
         btn_choose_avatar = ctk.CTkButton(
             left_col, 
@@ -2438,6 +2452,27 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
             font=ctk.CTkFont(weight="bold")
         )
         btn_choose_avatar.pack(pady=10)
+
+        ctk.CTkLabel(left_col, text="Powiększenie zdjęcia", text_color="#CBD5E1").pack(pady=(12, 2))
+        self.avatar_zoom_value = ctk.CTkLabel(left_col, text="100%", text_color="#38BDF8")
+        self.avatar_zoom_value.pack(pady=(0, 2))
+        self.avatar_zoom_slider = ctk.CTkSlider(
+            left_col,
+            from_=1.0,
+            to=3.0,
+            number_of_steps=20,
+            command=self.preview_avatar_zoom
+        )
+        self.avatar_zoom_slider.set(1.0)
+        self.avatar_zoom_slider.pack(fill="x", padx=20, pady=(0, 6))
+        ctk.CTkButton(
+            left_col,
+            text="Zapisz powiększenie",
+            width=170,
+            fg_color="#10B981",
+            hover_color="#059669",
+            command=self.save_avatar_zoom
+        ).pack(pady=(0, 10))
 
         # Prawa kolumna: Dane osobowe oraz Zmiana Hasła
         right_col = ctk.CTkFrame(main_profile_frame, fg_color="transparent")
@@ -2737,11 +2772,68 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         if file_path and self.current_user:
             user_info = self.get_user_data(self.current_user)
             user_info["avatar_path"] = file_path
+            if self.cloud_data_service.enabled:
+                try:
+                    user_info["avatar_url"] = self.cloud_data_service.upload_avatar(
+                        self.current_user,
+                        file_path
+                    )
+                except Exception:
+                    user_info.pop("avatar_url", None)
             self.save_users()
             self.load_user_profile_data()
             if hasattr(self, "refresh_users_list"):
                 self.refresh_users_list()
             self.lbl_profile_status.configure(text="✓ Zaktualizowano avatar profilowy!", text_color="#10B981")
+
+    def preview_avatar_zoom(self, value):
+        zoom = float(value)
+        self.avatar_zoom_value.configure(text=f"{round(zoom * 100)}%")
+        user_info = self.get_user_data(self.current_user) if self.current_user else {}
+        avatar_path = user_info.get("avatar_path", "")
+        if avatar_path and os.path.exists(avatar_path):
+            try:
+                image = crop_avatar(
+                    Image.open(avatar_path),
+                    zoom,
+                    self.avatar_focus_x,
+                    self.avatar_focus_y
+                )
+                large_image = ctk.CTkImage(light_image=image, dark_image=image, size=(130, 130))
+                self.lbl_avatar_display.configure(image=large_image, text="")
+                self._profile_avatar_preview = large_image
+            except Exception:
+                pass
+
+    def start_avatar_drag(self, event):
+        self._avatar_drag_origin = (
+            event.x,
+            event.y,
+            self.avatar_focus_x,
+            self.avatar_focus_y
+        )
+
+    def drag_avatar(self, event):
+        if not getattr(self, "_avatar_drag_origin", None):
+            return
+        start_x, start_y, focus_x, focus_y = self._avatar_drag_origin
+        zoom = max(1.0, float(self.avatar_zoom_slider.get()))
+        self.avatar_focus_x = max(0.0, min(1.0, focus_x - (event.x - start_x) / (130 * zoom)))
+        self.avatar_focus_y = max(0.0, min(1.0, focus_y - (event.y - start_y) / (130 * zoom)))
+        self.preview_avatar_zoom(self.avatar_zoom_slider.get())
+
+    def save_avatar_zoom(self):
+        if not self.current_user:
+            return
+        user_info = self.get_user_data(self.current_user)
+        user_info["avatar_zoom"] = round(float(self.avatar_zoom_slider.get()), 2)
+        user_info["avatar_focus_x"] = round(self.avatar_focus_x, 4)
+        user_info["avatar_focus_y"] = round(self.avatar_focus_y, 4)
+        self.save_users()
+        self.load_user_profile_data()
+        if hasattr(self, "refresh_users_list"):
+            self.refresh_users_list()
+        self.lbl_profile_status.configure(text="✓ Zapisano powiększenie avatara!", text_color="#10B981")
 
     def load_user_profile_data(self):
         if not self.current_user:
@@ -2767,9 +2859,19 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         self.entry_new_pass.delete(0, "end")
 
         avatar_path = user_info.get("avatar_path", "")
+        avatar_zoom = get_avatar_zoom(user_info)
+        self.avatar_focus_x, self.avatar_focus_y = get_avatar_focus(user_info)
+        if hasattr(self, "avatar_zoom_slider"):
+            self.avatar_zoom_slider.set(avatar_zoom)
+            self.avatar_zoom_value.configure(text=f"{round(avatar_zoom * 100)}%")
         if avatar_path and os.path.exists(avatar_path):
             try:
-                img = Image.open(avatar_path)
+                img = crop_avatar(
+                    Image.open(avatar_path),
+                    avatar_zoom,
+                    self.avatar_focus_x,
+                    self.avatar_focus_y
+                )
                 
                 # Duży avatar w zakładce profilu
                 avatar_img_large = ctk.CTkImage(light_image=img, dark_image=img, size=(130, 130))
@@ -3023,6 +3125,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
     def refresh_users_list(self):
         for widget in self.users_scroll.winfo_children():
             widget.destroy()
+        self.admin_avatar_images = {}
 
         for username in list(self.users.keys()):
             user_info = self.get_user_data(username)
@@ -3041,13 +3144,25 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
 
             if avatar_path and os.path.exists(avatar_path):
                 try:
-                    img = Image.open(avatar_path)
+                    img = crop_avatar(
+                        Image.open(avatar_path),
+                        get_avatar_zoom(user_info),
+                        *get_avatar_focus(user_info)
+                    )
                     avatar_img_list = ctk.CTkImage(light_image=img, dark_image=img, size=(28, 28))
                     lbl_avatar.configure(image=avatar_img_list)
+                    self.admin_avatar_images[username] = avatar_img_list
                 except Exception:
                     lbl_avatar.configure(text="👤")
             else:
                 lbl_avatar.configure(text="👤")
+                avatar_url = user_info.get("avatar_url", "")
+                if avatar_url:
+                    threading.Thread(
+                        target=self._load_admin_list_avatar,
+                        args=(lbl_avatar, avatar_url, username),
+                        daemon=True
+                    ).start()
 
             role_text = " [ADMIN]" if username == "admin" else ""
             color = "#EF4444" if username == "admin" else "#38BDF8"
@@ -3115,6 +3230,29 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
                 )
                 btn_save.pack(side="left", padx=5, pady=5)
 
+    def _load_admin_list_avatar(self, label, avatar_url, username):
+        try:
+            request = urllib.request.Request(avatar_url, headers={"User-Agent": "CS2-Trening-Avatar"})
+            with urllib.request.urlopen(request, timeout=8) as response:
+                user_info = self.get_user_data(username)
+                image = crop_avatar(
+                    Image.open(BytesIO(response.read())),
+                    get_avatar_zoom(user_info),
+                    *get_avatar_focus(user_info)
+                )
+            avatar_image = ctk.CTkImage(light_image=image, dark_image=image, size=(28, 28))
+            self.after(0, lambda: self._apply_admin_list_avatar(label, avatar_image, username))
+        except Exception:
+            pass
+
+    def _apply_admin_list_avatar(self, label, avatar_image, username):
+        try:
+            if label.winfo_exists():
+                label.configure(image=avatar_image, text="")
+                self.admin_avatar_images[username] = avatar_image
+        except tk.TclError:
+            pass
+
     def show_user_profile_admin(self, username):
         if self.current_user != "admin" or username not in self.users:
             return
@@ -3131,8 +3269,9 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
 
         profile_win = ctk.CTkToplevel(self)
         profile_win.title(f"Profil użytkownika: {username}")
-        profile_win.geometry("520x760")
-        profile_win.resizable(False, False)
+        profile_win.geometry("760x850")
+        profile_win.minsize(620, 650)
+        profile_win.resizable(True, True)
         profile_win.transient(self)
         profile_win.grab_set()
 
@@ -3142,8 +3281,69 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
             font=ctk.CTkFont(size=20, weight="bold")
         ).pack(pady=(22, 18))
 
-        info_frame = ctk.CTkFrame(profile_win, fg_color="#1E293B")
-        info_frame.pack(fill="x", padx=25, pady=5)
+        profile_scroll = ctk.CTkScrollableFrame(profile_win, fg_color="transparent")
+        profile_scroll.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        profile_canvas = profile_scroll._parent_canvas
+        profile_canvas.configure(yscrollincrement=1)
+        profile_canvas.unbind("<MouseWheel>")
+        profile_canvas.bind(
+            "<MouseWheel>",
+            lambda event: profile_canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
+        )
+
+        avatar_card = ctk.CTkFrame(profile_scroll, fg_color="#0F172A", border_width=1, border_color="#334155")
+        avatar_card.pack(fill="x", padx=17, pady=(0, 8))
+        avatar_label = ctk.CTkLabel(avatar_card, text="👤", width=110, height=110, font=ctk.CTkFont(size=42))
+        avatar_label.pack(side="left", padx=16, pady=12)
+        avatar_details = ctk.CTkFrame(avatar_card, fg_color="transparent")
+        avatar_details.pack(side="left", fill="both", expand=True, padx=(0, 12))
+        ctk.CTkLabel(
+            avatar_details,
+            text=username,
+            anchor="w",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="#38BDF8"
+        ).pack(anchor="w", pady=(20, 4))
+        ctk.CTkLabel(
+            avatar_details,
+            text=f"Ranga: {self.get_rank_for_xp(int(training_info.get('fatigue_score', 0) or 0))}",
+            anchor="w",
+            text_color="#FBBF24",
+            font=ctk.CTkFont(size=13, weight="bold")
+        ).pack(anchor="w")
+        avatar_image_holder = {"image": None}
+        avatar_zoom = get_avatar_zoom(user_info)
+        avatar_focus_x, avatar_focus_y = get_avatar_focus(user_info)
+
+        def apply_avatar(image):
+            image = crop_avatar(image, avatar_zoom, avatar_focus_x, avatar_focus_y)
+            image.thumbnail((100, 100), Image.Resampling.LANCZOS)
+            avatar_image = ctk.CTkImage(light_image=image, dark_image=image, size=(100, 100))
+            avatar_image_holder["image"] = avatar_image
+            avatar_label.configure(image=avatar_image, text="")
+
+        avatar_path = user_info.get("avatar_path", "")
+        if avatar_path and os.path.exists(avatar_path):
+            try:
+                apply_avatar(Image.open(avatar_path))
+            except Exception:
+                pass
+        else:
+            avatar_url = user_info.get("avatar_url", "")
+            if avatar_url:
+                def load_admin_avatar():
+                    try:
+                        request = urllib.request.Request(avatar_url, headers={"User-Agent": "CS2-Trening-Avatar"})
+                        with urllib.request.urlopen(request, timeout=8) as response:
+                            image = Image.open(BytesIO(response.read())).copy()
+                        profile_win.after(0, lambda: apply_avatar(image))
+                    except Exception:
+                        pass
+
+                threading.Thread(target=load_admin_avatar, daemon=True).start()
+
+        info_frame = ctk.CTkFrame(profile_scroll, fg_color="#1E293B")
+        info_frame.pack(fill="x", padx=17, pady=5)
 
         profile_rows = (
             ("Imię i nazwisko", full_name),
@@ -3164,16 +3364,17 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
             ctk.CTkLabel(row, text=value_text, anchor="w").pack(side="left", fill="x", expand=True)
 
         ctk.CTkLabel(
-            profile_win,
+            profile_scroll,
             text="Dane są tylko do podglądu administratora.",
             text_color="#94A3B8",
             font=ctk.CTkFont(size=12)
         ).pack(pady=(16, 8))
 
-        self.add_activity_calendar(profile_win, training_info)
+        self.add_activity_calendar(profile_scroll, training_info)
+        self.add_admin_stats_charts(profile_scroll, training_info)
 
         ctk.CTkButton(
-            profile_win,
+            profile_scroll,
             text="♻️ Resetuj statystyki treningu",
             width=240,
             fg_color="#DC2626",
@@ -3183,11 +3384,72 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         ).pack(pady=(4, 8))
 
         ctk.CTkButton(
-            profile_win,
+            profile_scroll,
             text="Zamknij",
             width=120,
             command=profile_win.destroy
         ).pack(pady=8)
+
+    def add_admin_stats_charts(self, parent, training_info):
+        stats_frame = ctk.CTkFrame(parent, fg_color="#0F172A")
+        stats_frame.pack(fill="x", padx=17, pady=(4, 10))
+        ctk.CTkLabel(
+            stats_frame,
+            text="STATYSTYKI TRENINGOWE — OSTATNIE 7 DNI",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color="#38BDF8"
+        ).pack(anchor="w", padx=12, pady=(10, 4))
+
+        labels, minutes, completed = self.get_training_chart_data(training_info, "week")
+        today = datetime.now().date()
+        dates = [today - timedelta(days=offset) for offset in range(6, -1, -1)]
+        xp_by_day = defaultdict(int)
+        for item in training_info.get("completion_history", []):
+            completed_date = self.parse_completion_date(item)
+            if completed_date not in dates:
+                continue
+            try:
+                duration_minutes = int(
+                    item.get("duration", int(item.get("duration_seconds", 0)) / 60)
+                )
+            except (AttributeError, TypeError, ValueError):
+                duration_minutes = 0
+            xp_by_day[completed_date] += max(0, duration_minutes) * 12
+
+        xp_values = [xp_by_day[date] for date in dates]
+        cumulative_xp = []
+        running_xp = 0
+        for value in xp_values:
+            running_xp += value
+            cumulative_xp.append(running_xp)
+
+        figure = Figure(figsize=(8.2, 6.2), dpi=90, facecolor="#0F172A")
+        axes = figure.subplots(2, 2)
+        chart_data = (
+            ("Czas treningu (min)", minutes, "#38BDF8", "bar"),
+            ("Ukończone ćwiczenia", completed, "#34D399", "bar"),
+            ("XP zdobyte dziennie", xp_values, "#FBBF24", "bar"),
+            ("Narastające XP", cumulative_xp, "#F472B6", "line")
+        )
+        x_values = list(range(len(labels)))
+        for axis, (title, values, color, chart_type) in zip(axes.flat, chart_data):
+            axis.set_facecolor("#111827")
+            if chart_type == "bar":
+                axis.bar(x_values, values, color=color, width=0.72)
+            else:
+                axis.plot(x_values, values, color=color, linewidth=2.2, marker="o", markersize=3)
+            axis.set_title(title, color="#E2E8F0", fontsize=11, pad=7)
+            axis.tick_params(axis="both", colors="#94A3B8", labelsize=8)
+            axis.set_xticks(x_values)
+            axis.set_xticklabels(labels, rotation=35, ha="right", fontsize=8)
+            axis.grid(axis="y", color="#334155", alpha=0.45, linewidth=0.6)
+            for spine in axis.spines.values():
+                spine.set_color("#334155")
+
+        figure.tight_layout(pad=1.5)
+        canvas = FigureCanvasTkAgg(figure, master=stats_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="x", padx=8, pady=(0, 10))
 
     def reset_user_training_stats(self, username, profile_win):
         if self.current_user != "admin" or username not in self.users:
@@ -3212,6 +3474,11 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         training_info["fatigue_score"] = 0
         training_info["completion_history"] = []
         self.save_data_for_user(username)
+        if self.cloud_leaderboard_cache is not None:
+            self.cloud_leaderboard_cache.pop(username, None)
+        self.cloud_leaderboard_cache_time = None
+        if hasattr(self, "leaderboard_list"):
+            self.refresh_leaderboard()
 
         if username == self.current_user:
             self.data = training_info
@@ -3229,80 +3496,113 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
             if completed_date:
                 activity_by_date[completed_date].append(item)
 
-        calendar_frame = ctk.CTkFrame(parent, fg_color="#0F172A")
-        calendar_frame.pack(fill="x", padx=25, pady=(4, 8))
-        calendar_cells = []
-
-        ctk.CTkLabel(
-            calendar_frame,
-            text="OSTATNIA AKTYWNOŚĆ — OSTATNIE 90 DNI",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#CBD5E1"
-        ).grid(row=0, column=0, columnspan=14, sticky="w", padx=12, pady=(10, 4))
-
         today = datetime.now().date()
         first_day = today - timedelta(days=89)
         calendar_start = first_day - timedelta(days=first_day.weekday())
         calendar_end = today + timedelta(days=6 - today.weekday())
         total_days = (calendar_end - calendar_start).days + 1
         week_count = total_days // 7
-        calendar_hint = ctk.CTkLabel(
-            calendar_frame,
-            text="Najedź na dzień, aby zobaczyć ukończone zlecenia.",
-            height=28,
-            text_color="#CBD5E1",
-            fg_color="#111827",
-            corner_radius=4,
-            anchor="w",
-            padx=10,
-            font=ctk.CTkFont(size=11)
+        active_days = sum(
+            1 for date_key, entries in activity_by_date.items()
+            if entries and first_day.isoformat() <= date_key <= today.isoformat()
         )
-        for row, weekday in enumerate(("pon.", "wt.", "śr.", "czw.", "pt.", "sob.", "niedz."), start=1):
+
+        calendar_frame = ctk.CTkFrame(
+            parent,
+            fg_color="#0F172A",
+            border_width=1,
+            border_color="#1E3A5F"
+        )
+        calendar_frame.pack(fill="x", padx=17, pady=(4, 10))
+
+        header = ctk.CTkFrame(calendar_frame, fg_color="transparent")
+        header.pack(fill="x", padx=15, pady=(12, 4))
+        ctk.CTkLabel(
+            header,
+            text="AKTYWNOŚĆ TRENINGOWA",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="#E2E8F0"
+        ).pack(side="left")
+        ctk.CTkLabel(
+            header,
+            text=f"{active_days} aktywnych dni · {len(history)} ukończonych sesji",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#38BDF8"
+        ).pack(side="right")
+        ctk.CTkLabel(
+            calendar_frame,
+            text="Ostatnie 90 dni",
+            text_color="#94A3B8",
+            font=ctk.CTkFont(size=11)
+        ).pack(anchor="w", padx=15, pady=(0, 8))
+
+        grid_frame = ctk.CTkFrame(calendar_frame, fg_color="#111827", corner_radius=8)
+        grid_frame.pack(anchor="center", padx=15, pady=(0, 10))
+        calendar_cells = []
+
+        ctk.CTkLabel(grid_frame, text="", width=38).grid(row=0, column=0, padx=4, pady=3)
+        for week in range(week_count):
+            week_date = calendar_start + timedelta(days=week * 7)
+            month_changed = week == 0 or week_date.month != (week_date - timedelta(days=7)).month
             ctk.CTkLabel(
-                calendar_frame,
+                grid_frame,
+                text=week_date.strftime("%b") if month_changed else "",
+                text_color="#CBD5E1",
+                font=ctk.CTkFont(size=9, weight="bold"),
+                width=15
+            ).grid(row=0, column=week + 1, padx=2, pady=(3, 2))
+
+        weekdays = ("pon.", "wt.", "śr.", "czw.", "pt.", "sob.", "niedz.")
+        for row, weekday in enumerate(weekdays, start=1):
+            ctk.CTkLabel(
+                grid_frame,
                 text=weekday,
-                width=48,
+                width=38,
                 anchor="e",
                 text_color="#94A3B8",
-                font=ctk.CTkFont(size=10)
-            ).grid(row=row + 1, column=0, padx=(8, 4), pady=2, sticky="e")
+                font=ctk.CTkFont(size=9)
+            ).grid(row=row, column=0, padx=(4, 6), pady=2, sticky="e")
+
+        calendar_hint = ctk.CTkLabel(
+            calendar_frame,
+            text="Najedź na dzień, aby zobaczyć szczegóły treningu.",
+            height=30,
+            text_color="#CBD5E1",
+            fg_color="#111827",
+            corner_radius=6,
+            anchor="center",
+            font=ctk.CTkFont(size=11)
+        )
 
         for week in range(week_count):
             week_date = calendar_start + timedelta(days=week * 7)
-            if week_date.month != (week_date - timedelta(days=7)).month:
-                ctk.CTkLabel(
-                    calendar_frame,
-                    text=week_date.strftime("%b"),
-                    text_color="#CBD5E1",
-                    font=ctk.CTkFont(size=10)
-                ).grid(row=1, column=week + 1, padx=1, pady=(0, 2))
-
             for weekday in range(7):
                 cell_date = week_date + timedelta(days=weekday)
                 date_key = cell_date.isoformat()
                 entries = activity_by_date.get(date_key, [])
                 count = len(entries) if first_day <= cell_date <= today else 0
                 if count == 0:
-                    color = "#242424"
+                    color = "#1E293B"
                 elif count == 1:
-                    color = "#6B126B"
+                    color = "#155E75"
                 elif count == 2:
-                    color = "#A313A3"
+                    color = "#0E7490"
                 else:
-                    color = "#E100E1"
+                    color = "#14B8A6"
 
                 cell = ctk.CTkLabel(
-                    calendar_frame,
+                    grid_frame,
                     text="",
-                    width=14,
-                    height=14,
-                    corner_radius=3,
+                    width=15,
+                    height=15,
+                    corner_radius=4,
                     fg_color=color
                 )
-                cell.grid(row=weekday + 2, column=week + 1, padx=2, pady=2)
+                cell.grid(row=weekday + 1, column=week + 1, padx=2, pady=2)
                 calendar_cells.append(cell)
                 cell._calendar_date = cell_date
                 cell._calendar_entries = entries
+                cell._calendar_hint = calendar_hint
                 cell.bind(
                     "<Enter>",
                     lambda event, d=cell_date, e=entries: self.show_calendar_details(event, d, e)
@@ -3311,46 +3611,19 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
                     "<Motion>",
                     lambda event, d=cell_date, e=entries: self.show_calendar_details(event, d, e)
                 )
-
-        ctk.CTkLabel(
-            calendar_frame,
-            text="Mniej",
-            text_color="#94A3B8",
-            font=ctk.CTkFont(size=10)
-        ).grid(row=9, column=1, sticky="e", padx=(0, 3), pady=(5, 10))
-        for column, color in enumerate(("#242424", "#6B126B", "#A313A3", "#E100E1"), start=2):
-            ctk.CTkLabel(
-                calendar_frame,
-                text="",
-                width=14,
-                height=14,
-                corner_radius=3,
-                fg_color=color
-            ).grid(row=9, column=column, padx=2, pady=(5, 10))
-        ctk.CTkLabel(
-            calendar_frame,
-            text="Więcej",
-            text_color="#94A3B8",
-            font=ctk.CTkFont(size=10)
-        ).grid(row=9, column=6, sticky="w", padx=(3, 0), pady=(5, 10))
-        calendar_hint.grid(
-            row=10,
-            column=0,
-            columnspan=week_count + 1,
-            sticky="w",
-            padx=12,
-            pady=(4, 8)
-        )
+        legend = ctk.CTkFrame(calendar_frame, fg_color="transparent")
+        legend.pack(anchor="center", pady=(0, 5))
+        ctk.CTkLabel(legend, text="Mniej", text_color="#94A3B8", font=ctk.CTkFont(size=10)).pack(side="left", padx=(0, 5))
+        for color in ("#1E293B", "#155E75", "#0E7490", "#14B8A6"):
+            ctk.CTkLabel(legend, text="", width=15, height=15, corner_radius=4, fg_color=color).pack(side="left", padx=2)
+        ctk.CTkLabel(legend, text="Więcej", text_color="#94A3B8", font=ctk.CTkFont(size=10)).pack(side="left", padx=(5, 0))
+        calendar_hint.pack(fill="x", padx=15, pady=(3, 12))
         self.admin_calendar_hint = calendar_hint
         for cell in calendar_cells:
-            cell.bind(
-                "<Enter>",
-                lambda event, d=cell._calendar_date, e=cell._calendar_entries: self.show_calendar_details(event, d, e)
-            )
             cell.bind("<Leave>", self.hide_calendar_details)
 
     def show_calendar_details(self, event, completed_date, entries):
-        text = f"{completed_date.strftime('%d.%m.%Y')} | {len(entries)} zleceń"
+        text = f"{completed_date.strftime('%d.%m.%Y')}  ·  {len(entries)} ukończonych treningów"
         calendar_hint = getattr(event.widget, "_calendar_hint", None)
         if calendar_hint is not None and calendar_hint.winfo_exists():
             calendar_hint.configure(text=text)
@@ -3358,7 +3631,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
     def hide_calendar_details(self, event):
         calendar_hint = getattr(event.widget, "_calendar_hint", None)
         if calendar_hint is not None and calendar_hint.winfo_exists():
-            calendar_hint.configure(text="Najedź na dzień, aby zobaczyć ukończone zlecenia.")
+            calendar_hint.configure(text="Najedź na dzień, aby zobaczyć szczegóły treningu.")
 
     def edit_user(self, old_username, new_username, new_password):
         if not new_username:

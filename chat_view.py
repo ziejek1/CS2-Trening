@@ -1,8 +1,13 @@
+import os
 import threading
+from io import BytesIO
 from datetime import datetime
 import tkinter as tk
+import urllib.request
 
 import customtkinter as ctk
+from PIL import Image
+from avatar_utils import crop_avatar, get_avatar_focus, get_avatar_zoom
 
 
 class ChatViewMixin:
@@ -13,6 +18,7 @@ class ChatViewMixin:
         self.chat_messages_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
         self.chat_message_ids = set()
         self.chat_message_rows = {}
+        self.chat_avatar_images = {}
         self.chat_status_label = None
         composer = ctk.CTkFrame(self.tab_chat, fg_color="#0F172A")
         composer.pack(fill="x", padx=20, pady=(0, 15))
@@ -115,6 +121,7 @@ class ChatViewMixin:
             widget.destroy()
         self.chat_message_ids.clear()
         self.chat_message_rows.clear()
+        self.chat_avatar_images.clear()
         self.chat_status_label = None
         self._show_chat_status("Brak wiadomości.", "#94A3B8")
 
@@ -124,6 +131,7 @@ class ChatViewMixin:
             return
         row.destroy()
         self.chat_message_ids.discard(message_id)
+        self.chat_avatar_images.pop(message_id, None)
         if not self.chat_message_ids:
             self._show_chat_status("Brak wiadomości.", "#94A3B8")
 
@@ -143,6 +151,16 @@ class ChatViewMixin:
             self.chat_status_label.destroy()
             self.chat_status_label = None
 
+    def _get_chat_top_users(self):
+        try:
+            entries = self.get_leaderboard_entries()
+        except Exception:
+            return {}
+        return {
+            entry["username"]: {"place": place, "rank": entry["rank"]}
+            for place, entry in enumerate(entries[:3], start=1)
+        }
+
     def _append_chat_message(self, item):
         if not isinstance(item, dict):
             return
@@ -156,7 +174,21 @@ class ChatViewMixin:
         self.chat_message_ids.add(message_key)
 
         existing_widgets = self.chat_messages_frame.pack_slaves()
-        row = ctk.CTkFrame(self.chat_messages_frame, fg_color="#1E293B")
+        username = item.get("username", "Użytkownik")
+        top_user = self._get_chat_top_users().get(username)
+        top_place = top_user["place"] if top_user else None
+        top_styles = {
+            1: {"accent": "#FBBF24", "background": "#2B2410"},
+            2: {"accent": "#CBD5E1", "background": "#202A38"},
+            3: {"accent": "#CD7F32", "background": "#2B2018"},
+        }
+        style = top_styles.get(top_place, {"accent": "#38BDF8", "background": "#1E293B"})
+        row = ctk.CTkFrame(
+            self.chat_messages_frame,
+            fg_color=style["background"],
+            border_width=1 if top_place else 0,
+            border_color=style["accent"]
+        )
         if existing_widgets:
             row.pack(before=existing_widgets[0], fill="x", padx=5, pady=3)
         else:
@@ -166,10 +198,73 @@ class ChatViewMixin:
             timestamp = datetime.fromisoformat(created_at.replace("Z", "+00:00")).strftime("%d.%m.%Y %H:%M")
         except (AttributeError, ValueError):
             timestamp = "--:--"
-        ctk.CTkLabel(row, text=item.get("username", "Użytkownik"), width=120, anchor="w", text_color="#38BDF8", font=ctk.CTkFont(weight="bold")).pack(side="left", padx=10, pady=8)
+        avatar_label = ctk.CTkLabel(row, text="👤", width=32, height=32)
+        avatar_label.pack(side="left", padx=(8, 4), pady=5)
+        avatar_path = self.get_user_data(username).get("avatar_path", "")
+        if avatar_path and os.path.exists(avatar_path):
+            try:
+                image = crop_avatar(
+                    Image.open(avatar_path),
+                    get_avatar_zoom(self.get_user_data(username)),
+                    *get_avatar_focus(self.get_user_data(username))
+                )
+                avatar_image = ctk.CTkImage(light_image=image, dark_image=image, size=(30, 30))
+                avatar_label.configure(image=avatar_image, text="")
+                self.chat_avatar_images[message_key] = avatar_image
+            except Exception:
+                pass
+        else:
+            avatar_url = self.get_user_data(username).get("avatar_url", "")
+            if avatar_url:
+                threading.Thread(
+                    target=self._load_remote_chat_avatar,
+                    args=(avatar_label, avatar_url, message_key, username),
+                    daemon=True
+                ).start()
+        if top_place:
+            ctk.CTkLabel(
+                row,
+                text=f"#{top_place}",
+                width=32,
+                text_color=style["accent"],
+                font=ctk.CTkFont(size=12, weight="bold")
+            ).pack(side="left", padx=(10, 2), pady=8)
+        ctk.CTkLabel(
+            row,
+            text=f"{username} · {top_user['rank']}" if top_user else username,
+            width=120,
+            anchor="w",
+            text_color=style["accent"],
+            font=ctk.CTkFont(weight="bold")
+        ).pack(side="left", padx=(2 if top_place else 10, 8), pady=8)
         ctk.CTkLabel(row, text=item.get("message", ""), anchor="w", justify="left", wraplength=650).pack(side="left", fill="x", expand=True, padx=8, pady=8)
         ctk.CTkLabel(row, text=timestamp, width=55, text_color="#94A3B8").pack(side="right", padx=8)
         self.chat_message_rows[message_key] = row
+
+    def _load_remote_chat_avatar(self, avatar_label, avatar_url, message_key, username):
+        try:
+            request = urllib.request.Request(
+                avatar_url,
+                headers={"User-Agent": "CS2-Trening-Avatar"}
+            )
+            with urllib.request.urlopen(request, timeout=8) as response:
+                image = crop_avatar(
+                    Image.open(BytesIO(response.read())),
+                    get_avatar_zoom(self.get_user_data(username)),
+                    *get_avatar_focus(self.get_user_data(username))
+                )
+            avatar_image = ctk.CTkImage(light_image=image, dark_image=image, size=(30, 30))
+            self.after(0, lambda: self._apply_remote_chat_avatar(avatar_label, avatar_image, message_key))
+        except Exception:
+            pass
+
+    def _apply_remote_chat_avatar(self, avatar_label, avatar_image, message_key):
+        try:
+            if avatar_label.winfo_exists():
+                avatar_label.configure(image=avatar_image, text="")
+                self.chat_avatar_images[message_key] = avatar_image
+        except tk.TclError:
+            pass
 
     def send_chat_message(self):
         message = self.chat_entry.get().strip()
