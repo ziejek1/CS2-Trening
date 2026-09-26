@@ -39,9 +39,10 @@ Aplikacja pokazuje numer wersji na ekranie logowania i sprawdza aktualizacje prz
 
 Aby opublikować aktualizację:
 
-1. Zmień `APP_VERSION` w `app_constants.py`.
-2. Utwórz commit i wypchnij tag, np. `v1.0.1`.
-3. GitHub Actions zbuduje instalator i opublikuje go w Releases.
+1. Ustaw tę samą nową wersję w `APP_VERSION` w `app_constants.py` i `MyAppVersion` w `installer\CS2Trening.iss`.
+2. Utwórz commit i wypchnij zmiany na `main`.
+3. W GitHubie utwórz release z tagiem o tym samym numerze, np. dla wersji `1.0.3` tag `v1.0.3`.
+4. Po opublikowaniu release GitHub Actions zbuduje instalator i dołączy go do wydania. Build przerwie się, jeśli tag, `APP_VERSION` i `MyAppVersion` nie będą zgodne.
 
 Workflow znajduje się w `.github\workflows\release.yml`.
 
@@ -66,7 +67,9 @@ Aby ranking, XP, historię i statystyki było widać na wszystkich komputerach, 
 
 ## Chat
 
-Po utworzeniu tabeli obecności uruchom dodatkowo zawartość `supabase_chat_schema.sql` w Supabase SQL Editorze. Zakładka Chat odświeża wiadomości co 5 sekund i pozwala wysyłać wiadomości do zalogowanych użytkowników.
+Po utworzeniu tabeli obecności uruchom dodatkowo zawartość `supabase_chat_schema.sql` w Supabase SQL Editorze. Zakładka Chat nasłuchuje nowych wiadomości przez Supabase Realtime i pozwala pisać do zalogowanych użytkowników.
+
+Uruchom również `supabase_chat_realtime.sql`, aby włączyć tabelę wiadomości do publikacji Realtime. Nowe wiadomości będą wtedy pojawiać się bez cyklicznego odświeżania. Jeśli subskrypcja Realtime nie będzie dostępna, aplikacja tymczasowo wróci do odpytywania co 5 sekund.
 
 Uruchom również `supabase_chat_retention.sql`, aby Supabase automatycznie zostawiał tylko 10 najnowszych wiadomości. Starsze wiadomości są usuwane po dodaniu kolejnej.
 

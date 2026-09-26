@@ -55,7 +55,7 @@ from app_constants import (
 )
 from update_utils import download_installer, fetch_latest_release, launch_installer
 from presence_service import PresenceService
-from chat_service import ChatService
+from chat_service import ChatRealtimeService, ChatService
 from chat_view import ChatViewMixin
 from cloud_data_service import CloudDataService, merge_training_data
 
@@ -82,6 +82,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         self.presence_service = PresenceService(SUPABASE_URL, SUPABASE_ANON_KEY)
         self.presence_job = None
         self.chat_service = ChatService(SUPABASE_URL, SUPABASE_ANON_KEY)
+        self.chat_realtime_service = ChatRealtimeService(SUPABASE_URL, SUPABASE_ANON_KEY)
         self.chat_polling_job = None
         self.cloud_data_service = CloudDataService(SUPABASE_URL, SUPABASE_ANON_KEY)
         self.cloud_leaderboard_cache = None
@@ -385,7 +386,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
 
             self.deiconify()
             self.start_presence_updates()
-            self.start_chat_polling()
+            self.start_chat_realtime()
             self.start_shared_config_polling()
             self.after(1500, self.check_for_updates)
 
@@ -452,7 +453,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         self.stop_timer()
         self.stop_rest_timer()
         self.stop_presence_updates()
-        self.stop_chat_polling()
+        self.stop_chat_realtime()
         self.stop_shared_config_polling()
         if self.reminder_job:
             self.after_cancel(self.reminder_job)
@@ -466,7 +467,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         self.stop_timer()
         self.stop_rest_timer()
         self.stop_presence_updates()
-        self.stop_chat_polling()
+        self.stop_chat_realtime()
         self.stop_shared_config_polling()
         if self.current_user:
             self.save_data()
