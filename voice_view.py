@@ -20,6 +20,8 @@ class VoiceViewMixin:
 
         self.voice_status_label = ctk.CTkLabel(self.tab_voice, text="Niezalogowany", text_color="#94A3B8")
         self.voice_status_label.pack(pady=(0, 8))
+        self.voice_detail_label = ctk.CTkLabel(self.tab_voice, text="", text_color="#FBBF24", wraplength=700)
+        self.voice_detail_label.pack(pady=(0, 8))
         self.voice_room_cards = {}
         rooms_frame = ctk.CTkFrame(self.tab_voice, fg_color="transparent")
         rooms_frame.pack(fill="x", padx=20, pady=8)
@@ -40,6 +42,8 @@ class VoiceViewMixin:
         self.voice_current_label.pack(side="left", padx=14, pady=12)
         self.voice_mute_button = ctk.CTkButton(self.voice_controls, text="Włącz mikrofon", width=135, command=self.toggle_voice_microphone, state="disabled")
         self.voice_mute_button.pack(side="right", padx=(6, 14), pady=8)
+        self.voice_test_button = ctk.CTkButton(self.voice_controls, text="Test głośników", width=120, command=self.test_voice_speakers)
+        self.voice_test_button.pack(side="right", padx=6, pady=8)
         self.voice_leave_button = ctk.CTkButton(self.voice_controls, text="Opuść pokój", width=110, fg_color="#DC2626", hover_color="#B91C1C", command=self.leave_voice_room, state="disabled")
         self.voice_leave_button.pack(side="right", padx=6, pady=8)
         ctk.CTkLabel(self.voice_controls, text="Mikrofon", text_color="#94A3B8").pack(side="left", padx=(14, 4), pady=12)
@@ -122,6 +126,10 @@ class VoiceViewMixin:
             "ERROR": "Błąd połączenia głosowego"
         }
         self.voice_status_label.configure(text=labels.get(status, str(status)), text_color="#34D399" if status not in {"ERROR"} else "#FCA5A5")
+        if error:
+            self.voice_detail_label.configure(text=str(error))
+        elif status in {"READY", "SUBSCRIBED", "MICROPHONE_ON", "PEER_CONNECTED", "AUDIO_RECEIVED"}:
+            self.voice_detail_label.configure(text="")
 
     def _on_voice_participants(self, participants):
         try:
@@ -141,6 +149,19 @@ class VoiceViewMixin:
 
     def _on_voice_error(self, error):
         self._on_voice_status("ERROR", error)
+
+    def test_voice_speakers(self):
+        try:
+            import numpy as np
+            import sounddevice as sd
+            sample_rate = 48000
+            duration = 0.35
+            timeline = np.arange(int(sample_rate * duration)) / sample_rate
+            tone = (np.sin(2 * np.pi * 440 * timeline) * 0.18).astype(np.float32)
+            sd.play(tone, sample_rate, blocking=False)
+            self.voice_detail_label.configure(text="Jeśli słyszysz krótki ton, głośniki działają.", text_color="#34D399")
+        except Exception as error:
+            self.voice_detail_label.configure(text=f"Nie można odtworzyć testu głośników: {error}", text_color="#FCA5A5")
 
     def _on_voice_level(self, level):
         try:
