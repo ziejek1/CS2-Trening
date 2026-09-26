@@ -1,5 +1,5 @@
 #define MyAppName "CS2 Trening E-Sport"
-#define MyAppVersion "1.0.10"
+#define MyAppVersion "1.0.11"
 #define MyAppPublisher "CS2 Trening"
 #define MyAppExeName "CS2Trening.exe"
 
@@ -17,6 +17,9 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 UninstallDisplayIcon={app}\{#MyAppExeName}
+CloseApplications=yes
+CloseApplicationsFilter=CS2Trening.exe
+RestartApplications=no
 
 [Languages]
 Name: "polish"; MessagesFile: "compiler:Languages\Polish.isl"

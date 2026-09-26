@@ -41,7 +41,7 @@ Aby opublikować aktualizację:
 
 1. Ustaw tę samą nową wersję w `APP_VERSION` w `app_constants.py` i `MyAppVersion` w `installer\CS2Trening.iss`.
 2. Utwórz commit i wypchnij zmiany na `main`.
-3. W GitHubie utwórz release z tagiem o tym samym numerze, np. dla wersji `1.0.10` tag `v1.0.10`.
+3. W GitHubie utwórz release z tagiem o tym samym numerze, np. dla wersji `1.0.11` tag `v1.0.11`.
 4. Po opublikowaniu release GitHub Actions zbuduje instalator i dołączy go do wydania. Build przerwie się, jeśli tag, `APP_VERSION` i `MyAppVersion` nie będą zgodne.
 
 Workflow znajduje się w `.github\workflows\release.yml`.

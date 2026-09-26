@@ -59,11 +59,17 @@ def download_installer(download_url):
 def launch_installer(installer_path):
     launcher_path = os.path.join(tempfile.gettempdir(), "CS2Trening-update.cmd")
     installer_path = os.path.abspath(installer_path)
+    process_id = os.getpid()
     with open(launcher_path, "w", encoding="utf-8") as launcher:
         launcher.write(
             "@echo off\n"
-            "timeout /t 3 /nobreak >nul\n"
-            f'start "" /wait "{installer_path}"\n'
+            f":wait_for_app\n"
+            f'tasklist /FI "PID eq {process_id}" | find "{process_id}" >nul\n'
+            "if not errorlevel 1 (\n"
+            "  timeout /t 1 /nobreak >nul\n"
+            "  goto wait_for_app\n"
+            ")\n"
+            f'start "" /wait "{installer_path}" /CLOSEAPPLICATIONS /SUPPRESSMSGBOXES /NORESTART\n'
             'del "%~f0"\n'
         )
     subprocess.Popen(
