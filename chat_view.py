@@ -12,6 +12,7 @@ class ChatViewMixin:
         self.chat_messages_frame = ctk.CTkScrollableFrame(self.tab_chat, label_text="WIADOMOŚCI")
         self.chat_messages_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
         self.chat_message_ids = set()
+        self.chat_status_label = None
         composer = ctk.CTkFrame(self.tab_chat, fg_color="#0F172A")
         composer.pack(fill="x", padx=20, pady=(0, 15))
         self.chat_entry = ctk.CTkEntry(composer, placeholder_text="Napisz wiadomość...", height=38)
@@ -80,17 +81,30 @@ class ChatViewMixin:
         self.after(0, lambda: self.refresh_chat_status(messages))
 
     def refresh_chat_status(self, messages):
-        for widget in self.chat_messages_frame.winfo_children():
-            widget.destroy()
-        self.chat_message_ids = set()
         if messages is None:
-            ctk.CTkLabel(self.chat_messages_frame, text="Brak połączenia z czatem.", text_color="#FCA5A5").pack(anchor="w", padx=10, pady=10)
-            return
-        if not messages:
-            ctk.CTkLabel(self.chat_messages_frame, text="Brak wiadomości.", text_color="#94A3B8").pack(anchor="w", padx=10, pady=10)
+            if not self.chat_message_ids:
+                self._show_chat_status("Brak połączenia z czatem.", "#FCA5A5")
             return
         for item in reversed(messages):
             self._append_chat_message(item)
+        if not self.chat_message_ids:
+            self._show_chat_status("Brak wiadomości.", "#94A3B8")
+
+    def _show_chat_status(self, text, color):
+        if self.chat_status_label is None:
+            self.chat_status_label = ctk.CTkLabel(
+                self.chat_messages_frame,
+                text=text,
+                text_color=color,
+            )
+            self.chat_status_label.pack(anchor="w", padx=10, pady=10)
+        else:
+            self.chat_status_label.configure(text=text, text_color=color)
+
+    def _clear_chat_status(self):
+        if self.chat_status_label is not None:
+            self.chat_status_label.destroy()
+            self.chat_status_label = None
 
     def _append_chat_message(self, item):
         if not isinstance(item, dict):
@@ -101,9 +115,7 @@ class ChatViewMixin:
         )
         if message_key in self.chat_message_ids:
             return
-        if not self.chat_message_ids:
-            for widget in self.chat_messages_frame.winfo_children():
-                widget.destroy()
+        self._clear_chat_status()
         self.chat_message_ids.add(message_key)
 
         row = ctk.CTkFrame(self.chat_messages_frame, fg_color="#1E293B")
