@@ -309,6 +309,11 @@ class VoiceService:
         if signal_type == "offer":
             from aiortc import RTCSessionDescription
 
+            if self._microphone and not any(
+                sender.track is self._microphone
+                for sender in peer.getSenders()
+            ):
+                peer.addTrack(self._microphone)
             await peer.setRemoteDescription(RTCSessionDescription(payload["sdp"], "offer"))
             answer = await peer.createAnswer()
             await peer.setLocalDescription(answer)
@@ -394,7 +399,7 @@ class VoiceService:
             for user in self._participants:
                 if user == self.username:
                     continue
-                await self._ensure_peer(user, offer=True)
+                await self._ensure_peer(user, offer=self.username < user)
             self._notify_status("MICROPHONE_ON")
         except Exception as error:
             self._microphone = None
