@@ -6,7 +6,7 @@ import secrets
 import sys
 import tkinter as tk
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from tkinter import filedialog, messagebox
 import threading
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -81,6 +81,7 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
         self.current_user = None
         self.presence_service = PresenceService(SUPABASE_URL, SUPABASE_ANON_KEY)
         self.presence_job = None
+        self.realtime_presence_cache = {}
         self.chat_service = ChatService(SUPABASE_URL, SUPABASE_ANON_KEY)
         self.chat_realtime_service = ChatRealtimeService(SUPABASE_URL, SUPABASE_ANON_KEY)
         self.chat_polling_job = None
@@ -520,10 +521,96 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
     def _presence_worker(self, username):
         try:
             self.presence_service.heartbeat(username)
-            online_users = self.presence_service.online_users()
+            online_presence = self.presence_service.online_presence()
         except Exception:
-            online_users = None
-        self.after(0, lambda: self.refresh_online_users(online_users))
+            online_presence = None
+        self.after(0, lambda: self.update_online_presence_cache(online_presence))
+
+    def update_online_presence_cache(self, online_presence):
+        if online_presence is None:
+            self.refresh_online_users(None)
+            return
+        self.realtime_presence_cache = online_presence
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=self.presence_service.ttl_seconds)
+        online_users = []
+        for username, last_seen in online_presence.items():
+            try:
+                timestamp = datetime.fromisoformat(last_seen.replace("Z", "+00:00"))
+            except (AttributeError, ValueError):
+                continue
+            if timestamp > cutoff:
+                online_users.append(username)
+        self.refresh_online_users(sorted(online_users))
+
+    def _on_cloud_realtime_change(self, payload):
+        try:
+            self.after(0, lambda: self.apply_cloud_realtime_change(payload))
+        except tk.TclError:
+            pass
+
+    def apply_cloud_realtime_change(self, payload):
+        change = payload.get("data", {})
+        table = change.get("table")
+        event = change.get("type")
+        record = change.get("record") or {}
+        old_record = change.get("old_record") or {}
+
+        if table == "user_presence":
+            presence_record = old_record if event == "DELETE" else record
+            username = presence_record.get("username")
+            if not username:
+                return
+            if event == "DELETE":
+                self.realtime_presence_cache.pop(username, None)
+            elif record.get("last_seen"):
+                self.realtime_presence_cache[username] = record["last_seen"]
+            self.update_online_presence_cache(self.realtime_presence_cache)
+            return
+
+        if table == "app_shared_config":
+            shared_config = record.get("data")
+            if isinstance(shared_config, dict):
+                self.apply_shared_config(shared_config)
+            return
+
+        if table != "user_training_data":
+            return
+
+        training_record = old_record if event == "DELETE" else record
+        username = training_record.get("username")
+        if not username:
+            return
+        if self.cloud_leaderboard_cache is None:
+            self.cloud_leaderboard_cache = {}
+        if event == "DELETE":
+            self.cloud_leaderboard_cache.pop(username, None)
+        else:
+            cloud_data = record.get("data")
+            if not isinstance(cloud_data, dict):
+                return
+            self.cloud_leaderboard_cache[username] = cloud_data
+            if username == self.current_user:
+                merged_data = merge_training_data(self.data, cloud_data)
+                merged_fields = {
+                    "completion_history",
+                    "custom_routines",
+                    "scheduled_plans",
+                    "total_seconds_spent",
+                    "total_minutes_spent",
+                    "fatigue_score",
+                    "completed_count",
+                }
+                for key, value in cloud_data.items():
+                    if key not in merged_fields:
+                        merged_data[key] = value
+                if merged_data != self.data:
+                    self.data = merged_data
+                    self.training_data.setdefault("users", {})[username] = merged_data
+                    save_training_data(DATA_FILE, self.training_data)
+                    self.refresh_ui()
+        self.cloud_leaderboard_cache_time = datetime.now()
+        if username != self.current_user and hasattr(self, "leaderboard_list"):
+            self.refresh_leaderboard()
 
     def _remove_presence_worker(self, username):
         try:

@@ -32,6 +32,7 @@ class ChatViewMixin:
             self._on_chat_realtime_message,
             self._on_chat_realtime_status,
             self._on_chat_realtime_delete,
+            self._on_cloud_realtime_change,
         )
         if not started:
             self.start_chat_polling()
@@ -154,7 +155,7 @@ class ChatViewMixin:
         self._clear_chat_status()
         self.chat_message_ids.add(message_key)
 
-        existing_widgets = self.chat_messages_frame.winfo_children()
+        existing_widgets = self.chat_messages_frame.pack_slaves()
         row = ctk.CTkFrame(self.chat_messages_frame, fg_color="#1E293B")
         if existing_widgets:
             row.pack(before=existing_widgets[0], fill="x", padx=5, pady=3)

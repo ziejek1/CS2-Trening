@@ -38,11 +38,18 @@ class PresenceService:
         encoded_username = urllib.parse.quote(username, safe="")
         return self._request("DELETE", f"user_presence?username=eq.{encoded_username}")
 
-    def online_users(self):
+    def online_presence(self):
         cutoff = (datetime.now(timezone.utc) - timedelta(seconds=self.ttl_seconds)).isoformat()
         encoded_cutoff = urllib.parse.quote(cutoff, safe="")
         result = self._request(
             "GET",
             f"user_presence?select=username,last_seen&last_seen=gt.{encoded_cutoff}&order=username.asc"
         )
-        return [item["username"] for item in result if item.get("username")]
+        return {
+            item["username"]: item["last_seen"]
+            for item in result
+            if item.get("username") and item.get("last_seen")
+        }
+
+    def online_users(self):
+        return list(self.online_presence())

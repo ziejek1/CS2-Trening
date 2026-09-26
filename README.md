@@ -41,7 +41,7 @@ Aby opublikować aktualizację:
 
 1. Ustaw tę samą nową wersję w `APP_VERSION` w `app_constants.py` i `MyAppVersion` w `installer\CS2Trening.iss`.
 2. Utwórz commit i wypchnij zmiany na `main`.
-3. W GitHubie utwórz release z tagiem o tym samym numerze, np. dla wersji `1.0.6` tag `v1.0.6`.
+3. W GitHubie utwórz release z tagiem o tym samym numerze, np. dla wersji `1.0.7` tag `v1.0.7`.
 4. Po opublikowaniu release GitHub Actions zbuduje instalator i dołączy go do wydania. Build przerwie się, jeśli tag, `APP_VERSION` i `MyAppVersion` nie będą zgodne.
 
 Workflow znajduje się w `.github\workflows\release.yml`.
@@ -69,7 +69,7 @@ Aby ranking, XP, historię i statystyki było widać na wszystkich komputerach, 
 
 Po utworzeniu tabeli obecności uruchom dodatkowo zawartość `supabase_chat_schema.sql` w Supabase SQL Editorze. Zakładka Chat nasłuchuje nowych wiadomości przez Supabase Realtime i pozwala pisać do zalogowanych użytkowników.
 
-Uruchom również `supabase_chat_realtime.sql`, aby włączyć tabelę wiadomości do publikacji Realtime. Nowe wiadomości będą wtedy pojawiać się bez cyklicznego odświeżania. Jeśli subskrypcja Realtime nie będzie dostępna, aplikacja tymczasowo wróci do odpytywania co 5 sekund.
+Uruchom również `supabase_chat_realtime.sql`, aby włączyć chat, obecność, postępy i wspólną konfigurację do publikacji Realtime. Zmiany tych danych są wtedy wysyłane do aplikacji bez czekania na polling; chat ma odpytywanie co 5 sekund jako fallback, jeśli jego subskrypcja nie zadziała.
 
 Uruchom również `supabase_chat_retention.sql`, aby Supabase zostawiał maksymalnie 10 wiadomości i czyścił cały chat co godzinę, o pełnej godzinie. Zdarzenia `DELETE` z Realtime opróżniają także widok w otwartych aplikacjach.
 
