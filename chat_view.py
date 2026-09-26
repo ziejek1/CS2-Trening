@@ -51,19 +51,19 @@ class ChatViewMixin:
     def _on_chat_realtime_message(self, message):
         try:
             self.after(0, lambda: self._append_chat_message(message))
-        except tk.TclError:
+        except (tk.TclError, RuntimeError):
             pass
 
     def _on_chat_realtime_status(self, status, error=None):
         try:
             self.after(0, lambda: self._apply_chat_realtime_status(status))
-        except tk.TclError:
+        except (tk.TclError, RuntimeError):
             pass
 
     def _on_chat_realtime_delete(self, message_id):
         try:
             self.after(0, lambda: self.delete_chat_message(message_id))
-        except tk.TclError:
+        except (tk.TclError, RuntimeError):
             pass
 
     def _apply_chat_realtime_status(self, status):
@@ -93,7 +93,10 @@ class ChatViewMixin:
             messages = self.chat_service.get_messages()
         except Exception:
             messages = None
-        self.after(0, lambda: self.refresh_chat_status(messages))
+        try:
+            self.after(0, lambda: self.refresh_chat_status(messages))
+        except (tk.TclError, RuntimeError):
+            pass
 
     def refresh_chat_status(self, messages):
         if messages is None:

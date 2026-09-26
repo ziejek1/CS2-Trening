@@ -111,7 +111,16 @@ class VoiceViewMixin:
             pass
 
     def _apply_voice_status(self, status, error=None):
-        labels = {"READY": "Połączono z usługą głosową", "SUBSCRIBED": "Pokój gotowy", "MICROPHONE_ON": "Mikrofon włączony", "STOPPED": "Usługa głosowa zatrzymana", "ERROR": "Błąd połączenia głosowego"}
+        labels = {
+            "READY": "Połączono z usługą głosową",
+            "SUBSCRIBED": "Pokój gotowy",
+            "MICROPHONE_ON": "Mikrofon włączony",
+            "AUDIO_RECEIVED": "Odebrano audio z pokoju",
+            "PEER_CONNECTED": "Połączenie głosowe aktywne",
+            "PEER_FAILED": "Połączenie głosowe nieudane",
+            "STOPPED": "Usługa głosowa zatrzymana",
+            "ERROR": "Błąd połączenia głosowego"
+        }
         self.voice_status_label.configure(text=labels.get(status, str(status)), text_color="#34D399" if status not in {"ERROR"} else "#FCA5A5")
 
     def _on_voice_participants(self, participants):

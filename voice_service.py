@@ -270,7 +270,13 @@ class VoiceService:
         payload = message.get("payload", message) if isinstance(message, dict) else {}
         if not isinstance(payload, dict) or payload.get("user") == self.username:
             return
-        asyncio.create_task(self._handle_message(message.get("event", ""), payload))
+        asyncio.create_task(self._handle_message_safely(message.get("event", ""), payload))
+
+    async def _handle_message_safely(self, event, payload):
+        try:
+            await self._handle_message(event, payload)
+        except Exception as error:
+            self._notify_error(error)
 
     async def _handle_message(self, event, payload):
         user = payload.get("user")
@@ -347,9 +353,18 @@ class VoiceService:
                         },
                     )
 
+            @peer.on("connectionstatechange")
+            async def on_connection_state_change():
+                self._notify_status(f"PEER_{peer.connectionState.upper()}")
+
+            @peer.on("iceconnectionstatechange")
+            async def on_ice_connection_state_change():
+                self._notify_status(f"ICE_{peer.iceConnectionState.upper()}")
+
             @peer.on("track")
             def on_track(track):
                 if track.kind == "audio":
+                    self._notify_status("AUDIO_RECEIVED")
                     if self._speaker is None:
                         self._speaker = _Speaker()
                         self._speaker.start()
