@@ -99,8 +99,9 @@ class _Speaker:
                 data = self._queue.get_nowait()
             except queue.Empty:
                 return
+            data = data.reshape(-1)
             length = min(len(data), len(outdata))
-            outdata[:length] = data[:length]
+            outdata[:length, 0] = data[:length]
 
         self._stream = sd.OutputStream(
             samplerate=48000,
