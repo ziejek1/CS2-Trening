@@ -391,7 +391,9 @@ class VoiceService:
         try:
             self._microphone = _MicrophoneTrack(self._notify_microphone_level)
             self._microphone.start()
-            for user in self._peers:
+            for user in self._participants:
+                if user == self.username:
+                    continue
                 await self._ensure_peer(user, offer=True)
             self._notify_status("MICROPHONE_ON")
         except Exception as error:
