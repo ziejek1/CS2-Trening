@@ -2444,6 +2444,15 @@ class CS2ProTrainingApp(ChatViewMixin, StatsViewMixin, PlannerViewMixin, Leaderb
             if on_ready:
                 on_ready()
             return
+        if not release.get("installer_ready", bool(release.get("url"))):
+            messagebox.showinfo(
+                "Aktualizacja dostępna",
+                f"Wersja {release['version']} jest już opublikowana, ale instalator jest jeszcze przygotowywany. Spróbuj ponownie za chwilę.",
+                parent=parent or self
+            )
+            if on_ready:
+                on_ready()
+            return
         if not messagebox.askyesno(
             "Dostępna aktualizacja",
             f"Dostępna jest wersja {release['version']}. Pobrać i zainstalować teraz?\n\nAplikacja pozostanie zablokowana do czasu aktualizacji.",

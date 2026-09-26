@@ -37,12 +37,11 @@ def fetch_latest_release(current_version):
         ),
         None
     )
-    if not asset:
-        return None
     return {
         "version": release.get("tag_name", ""),
-        "url": asset.get("browser_download_url", ""),
-        "notes": release.get("body", "")
+        "url": asset.get("browser_download_url", "") if asset else "",
+        "notes": release.get("body", ""),
+        "installer_ready": bool(asset and asset.get("browser_download_url")),
     }
 
 

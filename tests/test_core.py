@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from datetime import date, timedelta
+from unittest.mock import patch
 from pathlib import Path
 
 from app_constants import DATA_FILE
@@ -16,6 +17,7 @@ from training_utils import (
     get_training_badges,
     get_training_chart_data,
 )
+from update_utils import fetch_latest_release
 
 
 class AuthTests(unittest.TestCase):
@@ -54,6 +56,35 @@ class TrainingUtilsTests(unittest.TestCase):
         month = get_training_chart_data(data, "month", date(2026, 9, 26))
         self.assertEqual([len(values) for values in week], [7, 7, 7])
         self.assertEqual([len(values) for values in month], [30, 30, 30])
+
+
+class UpdateUtilsTests(unittest.TestCase):
+    def test_new_release_without_installer_is_reported_as_pending(self):
+        release_data = {"tag_name": "v1.0.5", "assets": [], "body": ""}
+        response = unittest.mock.MagicMock()
+        response.__enter__.return_value.read.return_value = json.dumps(release_data).encode("utf-8")
+
+        with patch("update_utils.urllib.request.urlopen", return_value=response):
+            release = fetch_latest_release("1.0.4")
+
+        self.assertEqual(release["version"], "v1.0.5")
+        self.assertFalse(release["installer_ready"])
+        self.assertEqual(release["url"], "")
+
+    def test_release_with_installer_is_ready(self):
+        release_data = {
+            "tag_name": "v1.0.5",
+            "assets": [{"name": "CS2Trening-Setup.exe", "browser_download_url": "https://example.test/setup.exe"}],
+            "body": "",
+        }
+        response = unittest.mock.MagicMock()
+        response.__enter__.return_value.read.return_value = json.dumps(release_data).encode("utf-8")
+
+        with patch("update_utils.urllib.request.urlopen", return_value=response):
+            release = fetch_latest_release("1.0.4")
+
+        self.assertTrue(release["installer_ready"])
+        self.assertEqual(release["url"], "https://example.test/setup.exe")
 
 
 class DataStoreTests(unittest.TestCase):
