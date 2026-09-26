@@ -291,8 +291,8 @@ class VoiceService:
                 self._notify_participants()
                 if action == "join":
                     await self._broadcast("presence", {"action": "roster", "user": self.username})
-                    if self.username < user:
-                        await self._ensure_peer(user, offer=True)
+                if self.username < user:
+                    await self._ensure_peer(user, offer=True)
             elif action == "sync_request":
                 await self._broadcast("presence", {"action": "roster", "user": self.username})
             elif action == "leave":
