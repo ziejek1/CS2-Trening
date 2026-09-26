@@ -2,50 +2,452 @@
     "users": {
         "admin": {
             "active": [],
-            "completed_count": 5,
-            "total_minutes_spent": 0,
-            "fatigue_score": 12,
+            "completed_count": 23,
+            "total_minutes_spent": 3,
+            "fatigue_score": 180,
             "completion_history": [
                 {
-                    "date": "2026-09-21",
-                    "type": "KZ / Surf (Movement)",
+                    "date": "2026-09-25",
+                    "type": "klaps w łeb",
                     "duration": 1,
-                    "duration_seconds": 8
+                    "duration_seconds": 7
                 },
                 {
-                    "date": "2026-09-21",
-                    "type": "Recoil Control (AK-47 / M4A1-S Spray)",
+                    "date": "2026-09-25",
+                    "type": "headshot",
+                    "duration": 1,
+                    "duration_seconds": 55
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "klaps w łeb",
+                    "duration": 1,
+                    "duration_seconds": 12
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "headshot",
+                    "duration": 1,
+                    "duration_seconds": 21
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "duration": 1,
+                    "duration_seconds": 4,
+                    "note": "CHUJOWO BYŁO !",
+                    "difficulty": "1 / 5",
+                    "mood": "Bardzo dobrze",
+                    "focus": "MYSZKA"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "AWP",
+                    "duration": 1,
+                    "duration_seconds": 15,
+                    "note": "xd",
+                    "difficulty": "3 / 5",
+                    "mood": "Słabo",
+                    "focus": "recoil"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "Aim",
+                    "duration": 1,
+                    "duration_seconds": 6,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "Aim",
                     "duration": 0,
-                    "duration_seconds": 0
+                    "duration_seconds": 0,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
                 },
                 {
-                    "date": "2026-09-21",
-                    "type": "FFA Deathmatch (Headshot Only)",
+                    "date": "2026-09-25",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "Aim",
                     "duration": 0,
-                    "duration_seconds": 0
+                    "duration_seconds": 0,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
                 },
                 {
-                    "date": "2026-09-21",
-                    "type": "Aim Botz: One-Taps & Counter-Strafe",
-                    "duration": 0,
-                    "duration_seconds": 0
-                },
-                {
-                    "date": "2026-09-21",
+                    "date": "2026-09-25",
                     "type": "Warmup: Aim Lab (Gridshot / Microflex)",
+                    "category": "Aim",
+                    "duration": 1,
+                    "duration_seconds": 13,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Aim Botz: One-Taps & Counter-Strafe",
+                    "category": "Movement",
                     "duration": 0,
-                    "duration_seconds": 0
+                    "duration_seconds": 0,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Recoil Control (AK-47 / M4A1-S Spray)",
+                    "category": "Recoil",
+                    "duration": 0,
+                    "duration_seconds": 0,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "FFA Deathmatch (Headshot Only)",
+                    "category": "Aim",
+                    "duration": 0,
+                    "duration_seconds": 0,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "Aim",
+                    "duration": 1,
+                    "duration_seconds": 20,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "Aim",
+                    "duration": 1,
+                    "duration_seconds": 44,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Warmup: Aim Lab (Flickshot)",
+                    "category": "AWP",
+                    "duration": 0,
+                    "duration_seconds": 0,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "CS2 Workshop: AWP Angles & Flicks",
+                    "category": "AWP",
+                    "duration": 0,
+                    "duration_seconds": 0,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "FFA DM: AWP Positioning & Reaction",
+                    "category": "AWP",
+                    "duration": 0,
+                    "duration_seconds": 0,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "klaps w łeb",
+                    "category": "Aim",
+                    "duration": 1,
+                    "duration_seconds": 8,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "headshot",
+                    "category": "Aim",
+                    "duration": 1,
+                    "duration_seconds": 4,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "Aim",
+                    "duration": 1,
+                    "duration_seconds": 9,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-26",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "Aim",
+                    "duration": 1,
+                    "duration_seconds": 7,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-26",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "Aim",
+                    "duration": 1,
+                    "duration_seconds": 5,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
                 }
             ],
-            "total_seconds_spent": 8
+            "total_seconds_spent": 230,
+            "custom_routines": [
+                {
+                    "name": "Rozgrzewka",
+                    "tasks": [
+                        {
+                            "type": "klaps w łeb",
+                            "duration": 5
+                        },
+                        {
+                            "type": "headshot",
+                            "duration": 10
+                        }
+                    ]
+                }
+            ],
+            "weekly_goals": {
+                "workouts": 30,
+                "minutes": 180
+            },
+            "scheduled_plans": [
+                {
+                    "date": "2026-09-25",
+                    "routine_name": "Rozgrzewka",
+                    "tasks": [
+                        {
+                            "type": "klaps w łeb",
+                            "duration": 5
+                        },
+                        {
+                            "type": "headshot",
+                            "duration": 10
+                        }
+                    ],
+                    "status": "completed",
+                    "plan_id": "0556e2e02c798c16",
+                    "time": "18:00",
+                    "reminder_enabled": true,
+                    "reminder_notified": false
+                },
+                {
+                    "date": "2026-09-26",
+                    "routine_name": "Rozgrzewka",
+                    "tasks": [
+                        {
+                            "type": "klaps w łeb",
+                            "duration": 5
+                        },
+                        {
+                            "type": "headshot",
+                            "duration": 10
+                        }
+                    ],
+                    "status": "planned",
+                    "plan_id": "37c69b7f5018e306",
+                    "time": "00:06",
+                    "reminder_enabled": true,
+                    "reminder_notified": true
+                }
+            ],
+            "category_goals": {
+                "Aim": 10,
+                "Recoil": 5,
+                "Movement": 5,
+                "Utility": 5,
+                "Game sense": 5,
+                "AWP": 5
+            }
         },
         "ziejek": {
             "active": [],
-            "completed_count": 0,
+            "completed_count": 4,
             "total_minutes_spent": 0,
-            "fatigue_score": 0,
-            "completion_history": [],
-            "total_seconds_spent": 0
+            "fatigue_score": 36,
+            "completion_history": [
+                {
+                    "date": "2026-09-25",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "Aim",
+                    "duration": 0,
+                    "duration_seconds": 0,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "Aim",
+                    "duration": 1,
+                    "duration_seconds": 6,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "Aim",
+                    "duration": 1,
+                    "duration_seconds": 3,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                },
+                {
+                    "date": "2026-09-25",
+                    "type": "Aim Botz (1000 Kills / Fast Taps)",
+                    "category": "Aim",
+                    "duration": 1,
+                    "duration_seconds": 4,
+                    "note": "",
+                    "difficulty": "3 / 5",
+                    "mood": "Dobrze",
+                    "focus": "Nie podano"
+                }
+            ],
+            "total_seconds_spent": 13,
+            "custom_routines": [],
+            "scheduled_plans": [],
+            "category_goals": {
+                "Aim": 5,
+                "Recoil": 5,
+                "Movement": 5,
+                "Utility": 5,
+                "Game sense": 5,
+                "AWP": 5
+            },
+            "weekly_goals": {
+                "workouts": 5,
+                "minutes": 180
+            }
         }
-    }
+    },
+    "preset_protocols": {
+        "🎯 Sniper & Flick Master (30 min)": [
+            {
+                "type": "Warmup: Aim Lab (Flickshot)",
+                "duration": 10
+            },
+            {
+                "type": "CS2 Workshop: AWP Angles & Flicks",
+                "duration": 10
+            },
+            {
+                "type": "FFA DM: AWP Positioning & Reaction",
+                "duration": 10
+            }
+        ],
+        "🧠 Utility & Tactical Drive (40 min)": [
+            {
+                "type": "Mirage Lineups (Smokes & Flashes)",
+                "duration": 15
+            },
+            {
+                "type": "Anubis & Inferno Execute Lineups",
+                "duration": 15
+            },
+            {
+                "type": "Retake Servers (Utility Application)",
+                "duration": 10
+            }
+        ],
+        "AIM / REFLEX": [
+            {
+                "type": "Warmup: Aim Lab (Gridshot / Microflex)",
+                "duration": 10
+            },
+            {
+                "type": "Aim Botz: One-Taps & Counter-Strafe",
+                "duration": 15
+            },
+            {
+                "type": "Recoil Control (AK-47 / M4A1-S Spray)",
+                "duration": 10
+            },
+            {
+                "type": "FFA Deathmatch (Headshot Only)",
+                "duration": 10
+            }
+        ]
+    },
+    "module_catalog": [
+        {
+            "name": "Aim Botz (1000 Kills / Fast Taps)",
+            "category": "Aim"
+        },
+        {
+            "name": "Aim Lab (Gridshot / Microflex)",
+            "category": "Aim"
+        },
+        {
+            "name": "Recoil Master (AK47 Spray Control)",
+            "category": "Recoil"
+        },
+        {
+            "name": "CS2 Workshop (Prefire Maps)",
+            "category": "Game sense"
+        },
+        {
+            "name": "DM Headshot Only (FFA)",
+            "category": "Aim"
+        },
+        {
+            "name": "KZ / Surf (Movement)",
+            "category": "Movement"
+        }
+    ]
 }
